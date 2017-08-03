@@ -44,7 +44,7 @@ class PlayerButton extends React.Component {
   render() {
     return (
       <button 
-        className="btn-player"
+        className={this.props.className}
         onClick={this.props.onClick}
       >
       {this.props.text}</button>
@@ -55,7 +55,8 @@ class OneOrTwoPlayer extends React.Component {
   renderButton(i) {
     let temp = i === 1 ? "One Player" : "Two Player";
     return (
-      <PlayerButton 
+      <PlayerButton
+        className="btn-player"
         text={temp} 
         onClick={() => this.props.onClick(i)}
       />
@@ -73,27 +74,62 @@ class OneOrTwoPlayer extends React.Component {
     )
   }
 }
+class ChooseChar extends React.Component {
+  renderButton(i) {
+    let temp = i === 1 ? "X" : "O";
+    return (
+      <PlayerButton
+        className ="btn-char"
+        text={temp} 
+        onClick={() => this.props.onClick(i)}
+      />
+    )
+  }
+  render() {
+    return (
+      <div className="intro-choose">
+        <p>Would you like to be X or O?</p>
+        <div className="intro-choose-btn">
+          {this.renderButton(1)}
+          {this.renderButton(2)}          
+        </div>
+      </div>
+    )
+  }
+}
 class Board extends React.Component {
   constructor() {
     super();
     this.state = {
       page: 1,
-      numPlayer: 0
+      numPlayer: 0,
+      player1: '',
+      player2: ''
     }
     this.handleClickPlayer = this.handleClickPlayer.bind(this);
+    this.handleClickChar = this.handleClickChar.bind(this);
   }
   handleClickPlayer(i) {
-      this.setState({
-        page: 2,
-        numPlayer: i
-      });
+    this.setState({
+      page: 2,
+      numPlayer: i
+    });
+  }
+  handleClickChar(i) {
+    // let char = i.target.value;
+    console.log(i.value);
+    // this.setState({
+    //   page: 3,
+    //   player1: char,
+    //   player2: char === 'X' ? 'O' : 'X'
+    // });
   }
   render() {
     let myComponent = undefined;
     if (this.state.page === 1) {
       myComponent = <OneOrTwoPlayer onClick={(i) => this.handleClickPlayer(i)} /> ;
     } else if (this.state.page === 2) {
-      myComponent = <h1>BERHASIL</h1>;
+      myComponent = <ChooseChar onClick={(i) => this.handleClickChar(i)}/>;
     }
     return (
       <div className="outer-board">
