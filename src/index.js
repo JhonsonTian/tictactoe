@@ -7,16 +7,35 @@ import registerServiceWorker from './registerServiceWorker';
 class Square extends React.Component {
   render() {
     return (
-      <button className="btn-square" onClick={this.props.onClick}>{this.props.val}</button>
+      <button className="btn-square" onClick={this.props.onClick} style={this.props.style}>{this.props.val}</button>
     )
   }
 }
 class BoardGame extends React.Component {
   renderSquare(i) {
+    let style = {};
+    switch (i) { //offset absolute position
+      case 0:
+      case 3:
+      case 6:
+        style={'left': '0px'}
+        break;
+      case 1:
+      case 4:
+      case 7:
+        style={'left': '101px'}
+        break;
+      case 2:
+      case 5:
+      case 8:
+        style={'left': '201px'}
+        break;  
+    }
     return (
       <Square 
         val={this.props.val[i]}
         onClick={() => this.props.onClick(i)}
+        style={style}
       />
     )
   }
@@ -212,32 +231,39 @@ class Board extends React.Component {
   handleClickSquare(i) {
     console.log(this.state.squares[i]);
     let squares = this.state.squares.slice();
-    squares[i] = 'x';
-    this.setState({squares});
-    // if (this.state.turn === '1') {
-    //   squares[i] = this.state.player1;
-    //   this.setState({
-    //     turn: '2',
-    //     squares: squares
-    //   });
-    // } else {
-    //   squares[i] = this.state.player2;
-    //   this.setState({
-    //     turn: '1',
-    //     squares: squares
-    //   });
-    // }
+    if (squares[i]) return; //if squares clicked before
+    let win = calculateWinner(squares);
+    if (win) { //if win
+      this.setState({page: 4})
+      return;
+    }
+    if (this.state.turn === '1') {
+      squares[i] = this.state.player1;
+      this.setState({
+        turn: '2',
+        squares: squares
+      });
+    } else {
+      squares[i] = this.state.player2;
+      this.setState({
+        turn: '1',
+        squares: squares
+      });
+    }
+  }
+  componentWillReceiveProps(nextProps) {
+    
   }
   render() {
     let myComponent = undefined;
     let myPlayer = undefined;
-    if (this.state.page === 1) {
+    if (this.state.page === 1) { //choose One or Two players
       myComponent = <OneOrTwoPlayer onClick={(i) => this.handleClickPlayer(i)} /> ;
       myPlayer = undefined;
-    } else if (this.state.page === 2) {
+    } else if (this.state.page === 2) { //choose X or O
       myComponent = <ChooseChar onClick={(i) => this.handleClickChar(i)} numPlayer={this.state.numPlayer}/>;
       myPlayer = undefined;
-    } else {
+    } else if (this.state.page === 3) { //main game
       myComponent = <BoardGame val={this.state.squares} onClick={(i) => this.handleClickSquare(i)} />;
       myPlayer = (<PlayerStats 
         win1={this.state.win1} 
@@ -262,6 +288,8 @@ class Board extends React.Component {
     //     console.log('computer');
     //   }
     // }
+    } else { //winner announce
+
     }
     return (
       <div className="outer-board">
@@ -280,3 +308,22 @@ class Board extends React.Component {
 ReactDOM.render(<Board />, document.getElementById('root'));
 registerServiceWorker();
 
+function calculateWinner(squares) {
+  const lines = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6]
+  ];
+  for (let i = 0; i < lines.length; i++) {
+    const [a, b, c] = lines[i];
+    if (squares[a] && (squares[a] === squares[b]) && (squares[a] === squares[c])) {
+      return squares[a];
+    }
+  }
+  return null;
+}
