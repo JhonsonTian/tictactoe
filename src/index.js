@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import _ from 'lodash';
 import './index.css';
 import registerServiceWorker from './registerServiceWorker';
 
@@ -138,7 +139,7 @@ class ChooseChar extends React.Component {
 class Status extends React.Component {
   render() {
     return (
-      <span>{this.props.text}</span>
+      <span style={this.props.style}>{this.props.text}</span>
     )
   }
 }
@@ -150,20 +151,33 @@ class Reset extends React.Component {
 class PlayerStats extends React.Component {
   renderStatus(i) {
     let temp = '';
+    let style = {};
     switch (i) {
       case 1:
         temp = this.props.win1;
         break;
       case 2:
         temp = "player 1";
+        if (this.props.turn === '1') {
+          style = { 
+            'font-weight': 'bold',
+            'color': 'red'
+          } 
+        } else style = {};
         break;
       case 3:
         temp = this.props.win2;
         break;
       case 4:
         temp = this.props.numPlayer === 1 ? "computer" : "player 2";
+        if (this.props.turn === '2') {
+          style = { 
+            'font-weight': 'bold',
+            'color': 'red'
+          } 
+        } else style = {};
     }
-    return <Status text={temp}/>
+    return <Status text={temp} style={style}/>
   }
   render() {
     return (
@@ -184,6 +198,15 @@ class PlayerStats extends React.Component {
     )
   }
 }
+class AnnouceWinner extends React.Component {
+  render() {
+    return (
+      <div onClick={this.props.onClick}>
+        <p>Player {this.props.winner} wins!!!</p>
+      </div>
+    )
+  }
+}
 class Board extends React.Component {
   constructor() {
     super();
@@ -196,12 +219,14 @@ class Board extends React.Component {
       win2: 0,
       squares: Array(9).fill(null),
       start: true,
-      turn: ''
+      turn: '', 
+      winner: ''
     }
     this.handleClickPlayer = this.handleClickPlayer.bind(this);
     this.handleClickChar = this.handleClickChar.bind(this);
     this.handleResetClick = this.handleResetClick.bind(this);
     this.handleClickSquare = this.handleClickSquare.bind(this);
+    this.handleWinnerClick = this.handleWinnerClick.bind(this);
   }
   handleResetClick() {
     this.setState({
@@ -219,6 +244,20 @@ class Board extends React.Component {
   }
   handleClickChar(i) {
     if (i < 3) {
+      //set first player
+      if (this.state.start) {
+        let turn = Math.floor((Math.random() * 2) + 1);
+        if (turn === 1) {
+          this.setState({turn: '1', start: false});
+        } else {
+          if (this.state.numPlayer === 2) {
+            this.setState({turn: '2', start: false});
+          } else {
+            this.setState({turn: 'c', start: false});
+          }
+        }
+      }
+      //update
       this.setState({
         page: 3,
         player1: i === 1 ? 'X' : 'O',
@@ -229,21 +268,16 @@ class Board extends React.Component {
     }
   }
   handleClickSquare(i) {
-    console.log(this.state.squares[i]);
     let squares = this.state.squares.slice();
     if (squares[i]) return; //if squares clicked before
-    let win = calculateWinner(squares);
-    if (win) { //if win
-      this.setState({page: 4})
-      return;
-    }
+
     if (this.state.turn === '1') {
       squares[i] = this.state.player1;
       this.setState({
-        turn: '2',
+        turn: this.state.numPlayer === 1 ? 'c' : '2',
         squares: squares
       });
-    } else {
+    } else if (this.state.turn === '2') {
       squares[i] = this.state.player2;
       this.setState({
         turn: '1',
@@ -251,18 +285,165 @@ class Board extends React.Component {
       });
     }
   }
-  componentWillReceiveProps(nextProps) {
-    
+  handleWinnerClick() {
+    this.setState({
+      page: 3,
+      squares: Array(9).fill(null),
+      start: true,
+      turn: '1',  //TEMP MUST BE CHANGED
+      winner: ''
+    });
+  }
+  componentDidUpdate(prevProps, prevState) {
+    if (this.state.turn === 'c') {  //computer turn
+      let squares = this.state.squares.slice();
+                    // human
+                    let huPlayer = this.state.player1;
+                    // computer
+                    let aiPlayer = this.state.player2;
+
+
+                    // keep track of function calls
+                    let fc = 0;
+
+                    // finding the ultimate play on the game that favors the computer
+                    let bestSpot = minimax(squares, aiPlayer);
+
+                    //loging the results
+                    // console.log("index: " + bestSpot.index);
+                    // console.log("function calls: " + fc);
+
+                    // the main minimax function
+                    function minimax(newBoard, player){
+                      
+                      //keep track of function calls;
+                      fc++;
+
+                      //available spots
+                      var availSpots = emptyIndexies(newBoard);
+
+                      // checks for the terminal states such as win, lose, and tie and returning a value accordingly
+                      if (winning(newBoard, huPlayer)){
+                        return {score:-10};
+                      }
+                      else if (winning(newBoard, aiPlayer)){
+                        return {score:10};
+                      }
+                      else if (availSpots.length === 0){
+                        return {score:0};
+                      }
+
+                    // an array to collect all the objects
+                      var moves = [];
+
+                      // loop through available spots
+                      for (var i = 0; i < availSpots.length; i++){
+                        //create an object for each and store the index of that spot that was stored as a number in the object's index key
+                        var move = {};
+                        move.index = newBoard[availSpots[i]];
+
+                        // set the empty spot to the current player
+                        newBoard[availSpots[i]] = player;
+
+                        //if collect the score resulted from calling minimax on the opponent of the current player
+                        if (player == aiPlayer){
+                          var result = minimax(newBoard, huPlayer);
+                          move.score = result.score;
+                        }
+                        else{
+                          var result = minimax(newBoard, aiPlayer);
+                          move.score = result.score;
+                        }
+
+                        //reset the spot to empty
+                        newBoard[availSpots[i]] = move.index;
+
+                        // push the object to the array
+                        moves.push(move);
+                      }
+
+                    // if it is the computer's turn loop over the moves and choose the move with the highest score
+                      var bestMove;
+                      if(player === aiPlayer){
+                        var bestScore = -10000;
+                        for(var i = 0; i < moves.length; i++){
+                          if(moves[i].score > bestScore){
+                            bestScore = moves[i].score;
+                            bestMove = i;
+                          }
+                        }
+                      }else{
+
+                    // else loop over the moves and choose the move with the lowest score
+                        var bestScore = 10000;
+                        for(var i = 0; i < moves.length; i++){
+                          if(moves[i].score < bestScore){
+                            bestScore = moves[i].score;
+                            bestMove = i;
+                          }
+                        }
+                      }
+
+                    // return the chosen move (object) from the array to the higher depth
+                      return moves[bestMove];
+                    }
+
+                    // returns the available spots on the board
+                    function emptyIndexies(board){
+                      return  board.filter(s => s != "O" && s != "X");
+                    }
+                    // winning combinations using the board indexies for instace the first win could be 3 xes in a row
+                    function winning(board, player){
+                    if (
+                            (board[0] == player && board[1] == player && board[2] == player) ||
+                            (board[3] == player && board[4] == player && board[5] == player) ||
+                            (board[6] == player && board[7] == player && board[8] == player) ||
+                            (board[0] == player && board[3] == player && board[6] == player) ||
+                            (board[1] == player && board[4] == player && board[7] == player) ||
+                            (board[2] == player && board[5] == player && board[8] == player) ||
+                            (board[0] == player && board[4] == player && board[8] == player) ||
+                            (board[2] == player && board[4] == player && board[6] == player)
+                            ) {
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    }
+
+
+
+      
+
+
+
+    }
+    if (!_.isEqual(prevState.squares, this.state.squares)) {
+      let win = calculateWinner(this.state.squares);
+      if (win) { //if win
+        if (this.state.turn === '2') {
+          this.setState({
+            page: 4,
+            win1: this.state.win1 + 1,
+            winner: '1'
+          });
+        } else {
+          this.setState({
+            page: 4,
+            win2: this.state.win2 + 1,
+            winner: '2'
+          });
+        }
+        return;
+      }
+    }
   }
   render() {
     let myComponent = undefined;
     let myPlayer = undefined;
     if (this.state.page === 1) { //choose One or Two players
       myComponent = <OneOrTwoPlayer onClick={(i) => this.handleClickPlayer(i)} /> ;
-      myPlayer = undefined;
     } else if (this.state.page === 2) { //choose X or O
       myComponent = <ChooseChar onClick={(i) => this.handleClickChar(i)} numPlayer={this.state.numPlayer}/>;
-      myPlayer = undefined;
     } else if (this.state.page === 3) { //main game
       myComponent = <BoardGame val={this.state.squares} onClick={(i) => this.handleClickSquare(i)} />;
       myPlayer = (<PlayerStats 
@@ -270,26 +451,17 @@ class Board extends React.Component {
         win2={this.state.win2}
         numPlayer={this.state.numPlayer}
         onClick={this.handleResetClick}
+        turn={this.state.turn}
       />);
-    // if (this.state.start) {
-    //   //random first player
-    //   let turn = Math.floor((Math.random() * 2) + 1);
-    //   if (turn === 1) {
-    //     this.setState({turn: '1', start: false});
-    //   } else {
-    //     if (this.state.numPlayer === 2) {
-    //       this.setState({turn: '2', start: false});
-    //     } else {
-    //       this.setState({turn: 'c', start: false});
-    //     }
-    //   }
-    // } else { //game logic
-    //   if (this.state.turn === 'c') {
-    //     console.log('computer');
-    //   }
-    // }
+    
     } else { //winner announce
-
+      myComponent = <AnnouceWinner winner={this.state.winner} onClick={this.handleWinnerClick} />;
+      myPlayer = (<PlayerStats 
+        win1={this.state.win1} 
+        win2={this.state.win2}
+        numPlayer={this.state.numPlayer}
+        onClick={this.handleResetClick}
+      />);
     }
     return (
       <div className="outer-board">
